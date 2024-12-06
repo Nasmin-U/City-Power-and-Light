@@ -1,4 +1,6 @@
 ﻿using City.Services;
+using Microsoft.Identity.Client;
+using Microsoft.Xrm.Sdk;
 using static City.Helpers.ConsoleFormatter;
 using static City.Helpers.EntityValidator;
 
@@ -21,48 +23,50 @@ namespace City.Service
         public void PerformOperations()
         {
             Header("Contact CRUD Operations");
+
+            // Initialize variables
             Guid contactId = Guid.Empty;
+            Guid accountId = Guid.Empty;
 
             try
             {
-                // Create and validate contact
+                // Create Account
+                ConsoleLogger.Info("Creating Account for Contact");
+                accountId = ValidateAndCreateEntity("account", new Dictionary<string, object>
+                {
+                    { "name", "Company B" },
+                    { "emailaddress1", "b.company@account.com" },
+                    { "telephone1", "12341234" },
+                    { "address1_city", "London" }
+                });
+
+                // Create Contact
                 ConsoleLogger.Info("Creating Contact");
-                var attributes = new Dictionary<string, object>
+                contactId = ValidateAndCreateEntity("contact", new Dictionary<string, object>
                 {
                     { "firstname", "Jane" },
                     { "lastname", "Doe" },
-                    { "emailaddress1", "jane.doe@contact.com" }
-                };
-                var attributeCollection = CreateAttributes(attributes);
-                Validate("contact", attributeCollection, isCreate: true);
-                contactId = _entityService.CreateEntity("contact", attributeCollection);
-
+                    { "emailaddress1", "jane.doe@contact.com" },
+                    { "telephone1", "1234567890" },
+                    { "parentcustomerid", new EntityReference("account", accountId) }
+                });
 
                 // Read contact
                 ConsoleLogger.Info("Reading Contact");
                 var contact = _entityService.ReadEntity("contact", contactId);
                 DisplayEntityAttributes(contact);
 
-
-                // Update and validate contact
+                // Update contact
                 ConsoleLogger.Info("Updating Contact");
-                var updatedAttributes = new Dictionary<string, object>
+                ValidateAndUpdateEntity("contact", contactId, new Dictionary<string, object>
                 {
                     { "firstname", "Updated Jane" },
                     { "emailaddress1", "updated.jane@contact.com" }
-                };
-                var updatedAttributeCollection = CreateAttributes(updatedAttributes);
-                Validate("contact", updatedAttributeCollection, isCreate: false);
-                _entityService.UpdateEntity("contact", contactId, updatedAttributeCollection);
-
+                });
 
                 // Read updated contact
                 var updatedContact = _entityService.ReadEntity("contact", contactId);
                 DisplayEntityAttributes(updatedContact);
-            }
-            catch (ArgumentException ex)
-            {
-                ConsoleLogger.Error($"Validation error: {ex.Message}");
             }
             catch (Exception ex)
             {
@@ -72,6 +76,7 @@ namespace City.Service
             {
                 // Delete All Created Records
                 SafelyDelete("contact", contactId);
+                SafelyDelete("account", accountId);
             }
         }
     }

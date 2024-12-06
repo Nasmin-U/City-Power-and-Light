@@ -22,7 +22,7 @@ namespace City.Helpers
             public static void Info(string message)
             {
                 Console.ForegroundColor = ConsoleColor.Cyan; 
-                Console.WriteLine($"INFO: {message}");
+                Console.WriteLine($"\nINFO: {message}");
                 Console.ResetColor();
             }
 
@@ -32,7 +32,7 @@ namespace City.Helpers
             /// <param name="message">The message to log</param> 
             public static void Error(string message)
             {
-                Console.ForegroundColor = ConsoleColor.Red; // Set text color to red
+                Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"ERROR: {message}");
                 Console.ResetColor();
             }
@@ -43,7 +43,7 @@ namespace City.Helpers
             /// <param name="message">The message to log</param> 
             public static void Success(string message)
             {
-                Console.ForegroundColor = ConsoleColor.Green; // Set text color to green
+                Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"SUCCESS: {message}");
                 Console.ResetColor();
             }
@@ -66,27 +66,41 @@ namespace City.Helpers
         /// <param name="entity">The entity to display attributes for</param> 
         public static void DisplayEntityAttributes(Entity entity)
         {
-            // Define relevant attributes for each entity type in a dictionary
-            var relevantKeysByEntity = new Dictionary<string, HashSet<string>>
-            {
-                { "account", new HashSet<string> { "name", "createdon", "modifiedon", "emailaddress1", "telephone1" } },
-                { "contact", new HashSet<string> { "firstname", "lastname", "createdon", "modifiedon", "emailaddress1", "telephone1" } },
-                { "incident", new HashSet<string> { "title", "description", "customerid", "createdon", "modifiedon" } }
-            };
+            var relevantKeysByEntity = GetRelevantColumnsForEntity(entity.LogicalName);
 
-            if (!relevantKeysByEntity.TryGetValue(entity.LogicalName, out var relevantKeys))
+            if (!relevantKeysByEntity.Any())
             {
-                Header($"No filter for {entity.LogicalName}. Displaying all attributes.");
-                relevantKeys = entity.Attributes.Keys.ToHashSet(); // Display all attributes if no filter is defined
+                Header($"No predefined columns for {entity.LogicalName}. Displaying all attributes.");
+                relevantKeysByEntity = entity.Attributes.Keys.ToHashSet();
             }
 
-            foreach (var attribute in entity.Attributes)
+            foreach (var key in relevantKeysByEntity)
             {
-                if (relevantKeys.Contains(attribute.Key))
+                if (entity.Attributes.ContainsKey(key))
                 {
-                    Console.WriteLine(FormatAttribute(attribute.Key, attribute.Value));
+                    Console.WriteLine(FormatAttribute(key, entity.Attributes[key]));
+                }
+                else
+                {
+                    Console.WriteLine($"{key}: [N/A]");
                 }
             }
+        }
+
+        /// <summary>
+        /// Get the relevant columns for an entity
+        /// </summary>
+        /// <param name="entityName">The name of the entity to get relevant columns for</param> 
+        /// <returns></returns>
+        private static HashSet<string> GetRelevantColumnsForEntity(string entityName)
+        {
+            return entityName.ToLower() switch
+            {
+                "incident" => new HashSet<string> { "title", "ticketnumber", "prioritycode", "caseorigincode", "customerid", "statuscode", "createdon" },
+                "account" => new HashSet<string> { "name", "telephone1", "address1_city", "primarycontactid" },
+                "contact" => new HashSet<string> { "fullname", "emailaddress1", "parentcustomerid", "telephone1" },
+                _ => new HashSet<string>()
+            };
         }
 
         /// <summary>
@@ -99,9 +113,45 @@ namespace City.Helpers
         {
             return value switch
             {
-                EntityReference entityRef => $"{key}: {entityRef.LogicalName} ({entityRef.Id})",
-                OptionSetValue optionSet => $"{key}: {optionSet.Value}",
+                EntityReference entityRef => $"{key}: {entityRef.Name ?? entityRef.Id.ToString()}",
+                OptionSetValue optionSet => $"{key}: {GetOptionSetText(key, optionSet.Value)} - [{optionSet.Value}]",
+                DateTime dateTime => $"{key}: {dateTime:G}",
                 _ => $"{key}: {value}"
+            };
+        }
+
+        /// <summary>
+        /// Gets the text representation of an OptionSet value
+        /// </summary>
+        /// <param name="key">The attribute name (e.g., "caseorigincode")</param>
+        /// <param name="value">The OptionSet value (e.g., 1)</param>
+        /// <returns>The text representation of the OptionSet value</returns>
+        private static string GetOptionSetText(string key, int value)
+        {
+            return key.ToLower() switch
+            {
+                "statuscode" => value switch
+                {
+                    1 => "Active",
+                    2 => "Resolved",
+                    3 => "Canceled",
+                    _ => "Unknown Status"
+                },
+                "caseorigincode" => value switch
+                {
+                    1 => "Phone Call",
+                    2 => "Email",
+                    3 => "Web",
+                    _ => "Unknown Origin"
+                },
+                "prioritycode" => value switch
+                {
+                    1 => "High",
+                    2 => "Medium",
+                    3 => "Low",
+                    _ => "Unknown Priority"
+                },
+                _ => "Unknown OptionSet"
             };
         }
     } 

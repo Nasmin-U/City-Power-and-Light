@@ -1,6 +1,4 @@
 ﻿using Microsoft.Xrm.Sdk;
-using System;
-using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace City.Helpers

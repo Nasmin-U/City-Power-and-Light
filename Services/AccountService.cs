@@ -1,6 +1,6 @@
 ﻿using City.Services;
+using Microsoft.Xrm.Sdk;
 using static City.Helpers.ConsoleFormatter;
-using static City.Helpers.EntityValidator;
 
 namespace City.Service
 {
@@ -23,49 +23,50 @@ namespace City.Service
         {
             Header("Account CRUD Operations");
             Guid accountId = Guid.Empty;
+            Guid contactId = Guid.Empty;
 
             try
             {
-                // Create and validate account
-                ConsoleLogger.Info("Creating Account");
-                var attributes = new Dictionary<string, object>
+                // Create a primary contact for the account
+                ConsoleLogger.Info("Creating Primary Contact");
+                contactId = ValidateAndCreateEntity("contact", new Dictionary<string, object>
                 {
-                    { "name", "Primary Account" },
-                    { "emailaddress1", "primary@account.com" },
-                    { "telephone1", "1234567890" }
-                };
-                var attributeCollection = CreateAttributes(attributes);
-                Validate("account", attributeCollection, isCreate: true);
-                accountId = _entityService.CreateEntity("account", attributeCollection);
+                    { "firstname", "Jonas" },
+                    { "lastname", "Doe" },
+                    { "emailaddress1", "jonas.doe@contact.com" },
+                    { "telephone1", "9876543210" }
+                });
 
+                // Create Account
+                ConsoleLogger.Info("Creating Account");
+                accountId = ValidateAndCreateEntity("account", new Dictionary<string, object>
+                {
+                    { "name", "Company A" },
+                    { "emailaddress1", "a.company@account.com" },
+                    { "telephone1", "1234567890" },
+                    { "address1_city", "Abu Dhabi" },
+                    { "primarycontactid", new EntityReference("contact", contactId) }
+                });
 
-                // Read account
+                // Read Account
                 ConsoleLogger.Info("Reading Account");
                 var account = _entityService.ReadEntity("account", accountId);
                 DisplayEntityAttributes(account);
 
-
-                // Update and validate account
+                // Update Account
                 ConsoleLogger.Info("Updating Account");
-                var updatedAttributes = new Dictionary<string, object>
+                ValidateAndUpdateEntity("account", accountId, new Dictionary<string, object>
                 {
-                    { "name", "Updated Account" },
-                    { "emailaddress1", "updated@account.com" },
-                    { "telephone1", "9876543210" }
-                };
-                var updatedAttributeCollection = CreateAttributes(updatedAttributes);
-                Validate("account", updatedAttributeCollection, isCreate: false);
-                _entityService.UpdateEntity("account", accountId, updatedAttributeCollection);
+                    { "name", "Updated Company A" },
+                    { "emailaddress1", "updated.compnayA@account.com" },
+                    { "telephone1", "0987654321" },
+                    
+                });
 
-
-                // Read updated account
+                // Read Updated Account
                 ConsoleLogger.Info("Reading Updated Account");
                 var updatedAccount = _entityService.ReadEntity("account", accountId);
                 DisplayEntityAttributes(updatedAccount);
-            }
-            catch (ArgumentException ex)
-            {
-                ConsoleLogger.Error($"Validation error: {ex.Message}");
             }
             catch (Exception ex)
             {
@@ -73,9 +74,12 @@ namespace City.Service
             }
             finally
             {
-                // Delete All Created Records
+                // Delete the account and contact
                 SafelyDelete("account", accountId);
+                SafelyDelete("contact", contactId);
             }
+        
         }
+
     }
 }

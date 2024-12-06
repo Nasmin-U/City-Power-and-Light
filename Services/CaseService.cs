@@ -1,7 +1,6 @@
-﻿using Microsoft.Xrm.Sdk;
-using City.Services;
+﻿using City.Services;
+using Microsoft.Xrm.Sdk;
 using static City.Helpers.ConsoleFormatter;
-using static City.Helpers.EntityValidator;
 
 namespace City.Service
 {
@@ -11,18 +10,19 @@ namespace City.Service
     public class CaseService : BaseService
     {
         /// <summary>
-        /// Initializes a new instance of the CaseService class
+        /// Constructor for CaseService
         /// </summary>
         /// <param name="entityService"></param>
         public CaseService(EntityService entityService) : base(entityService) { }
 
         /// <summary>
-        /// Perform CRUD operations for cases
+        /// Perform CRUD operations for case entities
         /// </summary>
         public void PerformOperations()
         {
             Header("Case (Incident) CRUD Operations");
 
+            // Initialize variables
             Guid accountId = Guid.Empty;
             Guid contactId = Guid.Empty;
             Guid caseForAccountId = Guid.Empty;
@@ -31,15 +31,27 @@ namespace City.Service
             try
             {
                 // Create Account and Contact
-                accountId = CreateAccount();
-                contactId = CreateContact();
+                ConsoleLogger.Info("Creating Account and Contact for Cases");
+                accountId = ValidateAndCreateEntity("account", new Dictionary<string, object>
+                {
+                    { "name", "Company C" },
+                    { "emailaddress1", "c.companyA@account.com" },
+                    { "telephone1", "1234567890" }
+                });
 
-                // Create cases for Account and Contact
-                caseForAccountId = CreateCase("account", accountId, "Case for Account");
-                caseForContactId = CreateCase("contact", contactId, "Case for Contact");
+                contactId = ValidateAndCreateEntity("contact", new Dictionary<string, object>
+                {
+                    { "firstname", "John" },
+                    { "lastname", "Doe" },
+                    { "emailaddress1", "john.doe@contact.com" }
+                });
 
+                // Create Cases
+                ConsoleLogger.Info("Creating Cases");
+                caseForAccountId = CreateCase("account", accountId, "Case Title for Account", 1, 1, "Account Case Description");
+                caseForContactId = CreateCase("contact", contactId, "Case Title for Contact", 2, 2, "Contact Case Description");
 
-                // Read Cases for Account and Contact
+                // Read Cases
                 ConsoleLogger.Info("Reading Case for Account");
                 var caseForAccount = _entityService.ReadEntity("incident", caseForAccountId);
                 DisplayEntityAttributes(caseForAccount);
@@ -48,11 +60,21 @@ namespace City.Service
                 var caseForContact = _entityService.ReadEntity("incident", caseForContactId);
                 DisplayEntityAttributes(caseForContact);
 
-
                 // Update Cases
-                UpdateCase(caseForAccountId, "Updated Case for Account", "Updated description for Account Case");
-                UpdateCase(caseForContactId, "Updated Case for Contact", "Updated description for Contact Case");
-
+                ConsoleLogger.Info("Updating Cases");
+                UpdateCase(caseForAccountId, new Dictionary<string, object>
+                {
+                    { "title", "Updated Case Title for Account" },
+                    { "description", "Updated Account Description" },
+                    { "prioritycode", new OptionSetValue(2) },
+                    { "statuscode", new OptionSetValue(2) },   
+                });
+                UpdateCase(caseForContactId, new Dictionary<string, object>
+                {
+                    { "title", "Updated Case Title for Contact" },
+                    { "description", "Updated Contact Description" },
+                    { "statuscode", new OptionSetValue(3) },
+                });
 
                 // Read Updated Cases
                 ConsoleLogger.Info("Reading Updated Case for Account");
@@ -69,7 +91,7 @@ namespace City.Service
             }
             finally
             {
-                // Delete All Created Records
+                // Delete created records
                 SafelyDelete("incident", caseForAccountId);
                 SafelyDelete("incident", caseForContactId);
                 SafelyDelete("account", accountId);
@@ -77,86 +99,45 @@ namespace City.Service
             }
         }
 
-
         /// <summary>
-        /// Create a case linked to an account or contact
+        /// Creates a case linked to a customer (account or contact)
         /// </summary>
-        /// <param name="customerType">The type of customer (account or contact)</param> 
-        /// <param name="customerId">The ID of the customer</param> 
-        /// <param name="title">The title of the case</param> 
-        /// <returns>The ID of the created case</returns> 
-        private Guid CreateCase(string customerType, Guid customerId, string title)
+        /// <param name="customerType">The customer type (e.g., "account", "contact")</param>
+        /// <param name="customerId">The ID of the customer</param>
+        /// <param name="title">The case title</param>
+        /// <param name="priorityCode">The numeric priority code (e.g., 1 for High, 2 for Medium)</param>
+        /// <param name="originCode">The numeric origin code (e.g., 1 for Phone Call, 2 for Email)</param>
+        /// <param name="description">The description of the case</param>
+        /// <returns>The GUID of the created case</returns>
+        private Guid CreateCase(string customerType, Guid customerId, string title, int priorityCode, int originCode, string description)
         {
-            ConsoleLogger.Info($"Creating Case for {customerType}");
-            var caseAttributes = new Dictionary<string, object>
+            return ValidateAndCreateEntity("incident", new Dictionary<string, object>
             {
                 { "title", title },
-                { "description", $"This is a case linked to {customerType}" },
-                { "customerid", new EntityReference(customerType, customerId) }
-            };
-
-            var caseAttributeCollection = CreateAttributes(caseAttributes);
-            Validate("incident", caseAttributeCollection, isCreate: true);
-            return _entityService.CreateEntity("incident", caseAttributeCollection);
+                { "ticketnumber", Guid.NewGuid().ToString() },
+                { "prioritycode", new OptionSetValue(priorityCode) }, 
+                { "caseorigincode", new OptionSetValue(originCode) },   
+                { "customerid", new EntityReference(customerType, customerId) },
+                { "description", description }, 
+                { "statuscode", new OptionSetValue(1) },
+                { "createdon", DateTime.Now }
+            });
         }
 
         /// <summary>
-        /// Update a case with new details (title and description)
+        /// Updates a case with specified fields
         /// </summary>
-        /// <param name="caseId">ID of the case</param>
-        /// <param name="newTitle">New title for the case</param>
-        /// <param name="newDescription">New description for the case</param>
-        private void UpdateCase(Guid caseId, string newTitle, string newDescription)
+        /// <param name="caseId">The ID of the case to update</param>
+        /// <param name="fieldsToUpdate">A dictionary of fields to update with their values</param>
+        private void UpdateCase(Guid caseId, Dictionary<string, object> fieldsToUpdate)
         {
-            ConsoleLogger.Info($"Updating Case with ID: {caseId}");
-            var updatedAttributes = new Dictionary<string, object>
+            if (fieldsToUpdate == null || fieldsToUpdate.Count == 0)
             {
-                { "title", newTitle },
-                { "description", newDescription }
-            };
+                throw new ArgumentException("No fields provided to update the case.");
+            }
 
-            var updatedAttributeCollection = CreateAttributes(updatedAttributes);
-            Validate("incident", updatedAttributeCollection, isCreate: false);
-
-            _entityService.UpdateEntity("incident", caseId, updatedAttributeCollection);
+            ValidateAndUpdateEntity("incident", caseId, fieldsToUpdate);
         }
 
-        /// <summary>
-        /// Create a sample account for linking with a case
-        /// </summary>
-        /// <returns>GUID of the created account</returns>
-        private Guid CreateAccount()
-        {
-            ConsoleLogger.Info("Creating Account for Case");
-            var accountAttributes = new Dictionary<string, object>
-            {
-                { "name", "Case Account" },
-                { "emailaddress1", "case@account.com" },
-                { "telephone1", "1234567890" }
-            };
-
-            var accountAttributeCollection = CreateAttributes(accountAttributes);
-            Validate("account", accountAttributeCollection, isCreate: true);
-            return _entityService.CreateEntity("account", accountAttributeCollection);
-        }
-
-        /// <summary>
-        /// Create a sample contact for linking with a case
-        /// </summary>
-        /// <returns>GUID of the created contact</returns>
-        private Guid CreateContact()
-        {
-            ConsoleLogger.Info("Creating Contact for Case");
-            var contactAttributes = new Dictionary<string, object>
-            {
-                { "firstname", "Casey" },
-                { "lastname", "Contact" },
-                { "emailaddress1", "casey@contact.com" }
-            };
-
-            var contactAttributeCollection = CreateAttributes(contactAttributes);
-            Validate("contact", contactAttributeCollection, isCreate: true);
-            return _entityService.CreateEntity("contact", contactAttributeCollection);
-        }
     }
 }
