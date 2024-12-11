@@ -16,7 +16,6 @@
 4. [Project Structure](#project-structure)
 5. [Usage](#usage)
     - [CRUD Operations Workflow](#crud-operations-workflow)
-6. [Customization](#customization)
 7. [Logging](#logging)
 8. [Example Output](#example-output)
 9. [Contributing](#contributing)
@@ -116,18 +115,36 @@ The application uses `ConsoleFormatter` for structured logging:
 ### **Example Output**
 
 ```
-*************************** CASE (INCIDENT) CRUD OPERATIONS ***************************
+SUCCESS: Connected to CustomerService Trial
 
-INFO: Creating Account and Contact for Cases
-INFO: Creating Cases
-INFO: Reading Case for Account
-title: Account Case Title
-ticketnumber: 12345
-prioritycode: High (1)
-caseorigincode: Phone Call (1)
-customerid: account (ID)
-statuscode: Active (1)
-createdon: 06/12/2024 11:56:50
+
+*************************** ACCOUNT CRUD OPERATIONS ***************************
+
+
+INFO: Creating Primary Contact
+
+INFO: Creating Account
+
+INFO: Reading Account
+name: Company A
+telephone1: 1234567890
+address1_city: Abu Dhabi
+primarycontactid: Jonas Doe
+
+INFO: Updating Account
+
+INFO: Reading Updated Account
+name: Updated Company A
+telephone1: 0987654321
+address1_city: Abu Dhabi
+primarycontactid: Jonas Doe
+
+INFO: Deleting account with ID: 094d3c7c-d9b3-ef11-a72f-0022480735b2
+SUCCESS: account 094d3c7c-d9b3-ef11-a72f-0022480735b2 deleted
+
+INFO: Deleting contact with ID: 034d3c7c-d9b3-ef11-a72f-0022480735b2
+SUCCESS: contact 034d3c7c-d9b3-ef11-a72f-0022480735b2 deleted
+
 ```
 
 ---
@@ -157,7 +174,3 @@ This project is licensed under the MIT License. See `LICENSE` for details.
 
 ### **Contact**
 For issues or feature requests, please open an issue in the repository or contact the project maintainers.
-
----
-
-Let me know if you'd like further refinements or additional sections!
